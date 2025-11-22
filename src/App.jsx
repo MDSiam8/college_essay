@@ -205,7 +205,21 @@ const FeedbackCard = ({ item, color, isSelected, onClick }) => {
 
 // --- Utilities ---
 
-const DEFAULT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+let genAIInstance = null;
+
+const getGenAI = (apiKey) => {
+  if (!genAIInstance) {
+    // Prioritize custom key, then fallback to environment variable
+    const key = apiKey || import.meta.env.VITE_GEMINI_API_KEY;
+    if (key) {
+      genAIInstance = new GoogleGenerativeAI(key);
+    } else {
+      console.warn("Gemini API Key is missing. Please set VITE_GEMINI_API_KEY or provide a custom key.");
+    }
+  }
+  return genAIInstance;
+}
+
 const HIGHLIGHT_COLORS = [
   'bg-yellow-200', 
   'bg-green-200', 
@@ -237,7 +251,10 @@ const findQuoteIndex = (text, quote) => {
 };
 
 const analyzeEssayWithGemini = async (text, selectedSchools, apiKey) => {
-  const genAI = new GoogleGenerativeAI(apiKey || DEFAULT_GEMINI_KEY);
+  const genAI = getGenAI(apiKey);
+  if (!genAI) {
+    throw new Error("API Key is missing. Please click the key icon to add your Google Gemini API key.");
+  }
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" }); 
   const schoolContext = selectedSchools.length > 0 
     ? `The student is targeting: ${selectedSchools.map(s => `${s.name} (Vibe: ${s.vibe})`).join(', ')}.`
@@ -387,10 +404,12 @@ export default function EssayFlow() {
     } catch (err) {
       if (err.message?.includes('404') || err.message?.includes('not found')) {
          try {
-            const genAI = new GoogleGenerativeAI(customApiKey || DEFAULT_GEMINI_KEY);
-            const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-            // Retry logic would go here
-            console.log("Primary model failed, check API key or model availability.");
+            const genAI = getGenAI(customApiKey);
+            if (genAI) {
+                const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+                // Retry logic would go here
+                console.log("Primary model failed, check API key or model availability.");
+            }
          } catch (e) {}
       }
       console.error(err);
