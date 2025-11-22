@@ -22,7 +22,12 @@ import {
   Maximize2,
   Minimize2,
   RefreshCw,
-  Download
+  Download,
+  ThumbsUp,
+  ThumbsDown,
+  Lightbulb,
+  Target,
+  Printer
 } from 'lucide-react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jsPDF from 'jspdf';
@@ -124,6 +129,7 @@ const ApiKeyModal = ({ isOpen, onClose, onSave }) => {
 
 const FeedbackCard = ({ item, color, isSelected, onClick }) => {
   const isJHUCard = item.category === 'Blue Jay Insider';
+  const [showExample, setShowExample] = useState(false);
 
   return (
     <div 
@@ -140,11 +146,11 @@ const FeedbackCard = ({ item, color, isSelected, onClick }) => {
         `}
       >
         <div className="p-5 flex items-start justify-between gap-4">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0"> 
             <div className="flex items-center gap-2 mb-1">
-              {/* Color Dot */}
-              <div className={`w-2 h-2 rounded-full ${color}`}></div>
-              <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+              {/* Semantic Color Dot (if category matched) or Fallback */}
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${color}`}></div>
+              <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap ${
                 isJHUCard ? 'bg-blue-600 text-white animate-pulse' :
                 item.score >= 90 ? 'bg-green-100 text-green-700' :
                 item.score >= 80 ? 'bg-cyan-100 text-cyan-700' :
@@ -153,10 +159,10 @@ const FeedbackCard = ({ item, color, isSelected, onClick }) => {
                 {isJHUCard && <Bird className="w-3 h-3 inline mr-1 mb-0.5"/>}
                 {item.category}
               </span>
-              <span className="text-xs text-slate-500 font-medium">{item.score}/100</span>
+              <span className="text-xs text-slate-500 font-medium ml-auto">{item.score}/100</span>
             </div>
-            <h3 className={`font-semibold text-lg ${isJHUCard ? 'text-blue-900' : 'text-slate-800'}`}>{item.title}</h3>
-            <p className={`text-sm mt-1 leading-relaxed ${isJHUCard ? 'text-blue-800' : 'text-slate-600'}`}>{item.summary}</p>
+            <h3 className={`font-semibold text-lg truncate ${isJHUCard ? 'text-blue-900' : 'text-slate-800'}`}>{item.title}</h3>
+            <p className={`text-sm mt-1 leading-relaxed line-clamp-2 ${isJHUCard ? 'text-blue-800' : 'text-slate-600'}`}>{item.summary}</p>
           </div>
           <div className={`mt-1 p-1 rounded-full transition-transform duration-300 ${isSelected ? 'rotate-180 bg-slate-200/50' : ''}`}>
             <ChevronDown className="w-5 h-5 text-slate-500" />
@@ -165,7 +171,7 @@ const FeedbackCard = ({ item, color, isSelected, onClick }) => {
 
         <div className={`
           overflow-hidden transition-all duration-500 ease-in-out
-          ${isSelected ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'}
+          ${isSelected ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}
         `}>
           <div className="p-5 pt-0 text-sm border-t border-slate-100/50">
             <div className="mt-4 space-y-4">
@@ -178,15 +184,33 @@ const FeedbackCard = ({ item, color, isSelected, onClick }) => {
                   {item.details}
                 </p>
                 {item.quote && (
-                   <div className="mt-3 pl-3 border-l-2 border-slate-300 text-slate-500 italic text-xs">
+                   <div className="mt-3 pl-3 border-l-2 border-slate-300 text-slate-500 italic text-xs break-words">
                      "{item.quote}"
                    </div>
                 )}
               </div>
 
+              {item.rewrite_suggestion && (
+                <div className="bg-white/50 p-4 rounded-xl border border-slate-200">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowExample(!showExample); }}
+                    className="text-xs font-bold text-cyan-700 uppercase tracking-wide flex items-center gap-1 hover:text-cyan-800 mb-2"
+                  >
+                    <Lightbulb className="w-3 h-3" />
+                    {showExample ? "Hide Example" : "See Rewrite Example"}
+                  </button>
+                  
+                  <div className={`transition-all duration-300 overflow-hidden ${showExample ? 'max-h-40 opacity-100 pl-1' : 'max-h-0 opacity-0'}`}>
+                    <div className="text-slate-600 italic border-l-2 border-cyan-300 pl-3 py-1 bg-cyan-50/50 rounded-r-lg">
+                      {item.rewrite_suggestion}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-3 bg-cyan-50/50 p-4 rounded-xl border border-cyan-100">
                 <div className="mt-0.5 p-1 bg-cyan-100 rounded-full text-cyan-700">
-                  <Sparkles className="w-3 h-3" />
+                  <Target className="w-3 h-3" />
                 </div>
                 <div>
                   <h4 className="font-semibold text-cyan-900 mb-1">Suggested Action</h4>
@@ -231,6 +255,26 @@ const HIGHLIGHT_COLORS = [
   'bg-lime-200'
 ];
 
+// Map categories to colors for Semantic Color Coding
+const CATEGORY_COLORS = {
+  'Narrative Arc': 'bg-blue-400',
+  'Content': 'bg-blue-400',
+  'Grammar': 'bg-yellow-400',
+  'Flow': 'bg-yellow-400',
+  'School Fit': 'bg-teal-400',
+  'Blue Jay Insider': 'bg-teal-400',
+  'Cliché Check': 'bg-orange-400',
+  'Warning': 'bg-red-400',
+  'Tone Analysis': 'bg-purple-400',
+  'Hook Quality': 'bg-pink-400',
+};
+
+const getCategoryColor = (category) => {
+  // Fuzzy match or default
+  const key = Object.keys(CATEGORY_COLORS).find(k => category.includes(k));
+  return key ? CATEGORY_COLORS[key] : 'bg-gray-400';
+};
+
 // Helper for fuzzy matching
 const findQuoteIndex = (text, quote) => {
   if (!quote || !text) return -1;
@@ -244,9 +288,6 @@ const findQuoteIndex = (text, quote) => {
   index = text.indexOf(trimmedQuote);
   if (index !== -1) return index;
 
-  // 3. Try removing punctuation/whitespace to find match (approximate)
-  // This is harder to return exact index for, so we'll skip complex fuzzy matching for now 
-  // and rely on the prompt instructions, but could implement if needed.
   return -1;
 };
 
@@ -296,17 +337,37 @@ const analyzeEssayWithGemini = async (text, selectedSchools, apiKey) => {
           "summary": "One sentence summary of this specific feedback",
           "details": "Detailed explanation (3-4 sentences) explaining exactly why this feedback is given.",
           "quote": "The EXACT substring from the essay text that this feedback refers to. Copy it exactly from the input text including whitespace/punctuation. If general feedback, return null.",
-          "action": "Specific, actionable advice on how to improve this section."
+          "action": "Specific, actionable advice on how to improve this section.",
+          "rewrite_suggestion": "A concrete example of how to rewrite the quoted section to improve it (optional, return null if not applicable)."
         }
       ]
     }
 
     REQUIREMENTS:
-    1. Provide at least 5-7 distinct feedback items.
+    1. Provide 8-15+ distinct feedback items (or as many as needed for comprehensive coverage). Do not limit yourself to just 6-7 items. Be thorough and cover all aspects: narrative structure, voice, grammar, flow, tone, hook, clichés, school fit, specific quotes that need improvement, transitions, conclusion quality, etc. The more comprehensive the feedback, the better. Aim for 10-15 items for a typical essay, and adjust based on the essay's length and complexity.
     2. If JHU is selected, ensure the first item is 'Blue Jay Insider'.
     3. Be critical but constructive.
     4. Evaluate if the essay sounds like it was written by an AI (overly formal, generic structure, lack of personal voice).
     5. IMPORTANT: Ensure all suggestions and "action" items sound like they are written by a helpful human mentor. Avoid AI clichés like "delve deeper," "showcase," "unleash," or overly flowery language. Use direct, practical 12th-grade level language.
+    6. REWRITE SUGGESTION RULE - CRITICAL: When providing a 'rewrite_suggestion', you MUST write it EXACTLY as a real 12th grader would write it. This is the most important rule.
+       - Use contractions (I'm, it's, don't, can't, won't, that's, etc.)
+       - Use simple, direct sentences. Avoid complex parallel structures.
+       - Write with genuine, raw emotion - not polished or "inspiring"
+       - Use casual, natural language patterns that a teenager would actually use
+       - Keep it conversational, not essay-like
+       - DO NOT use any of these AI cliché patterns:
+         * "It isn't just __; it's also ___" or similar parallel structures
+         * "Through [experience], I learned that..." (too formulaic)
+         * "This experience taught me the importance of..." (sounds like ChatGPT)
+         * "I realized that [abstract concept] is more than just [thing]" (overused pattern)
+         * "Little did I know..." (overused hook)
+         * "In that moment, everything changed" (dramatic cliché)
+         * "I came to understand that..." (too formal)
+         * Any variation of "This wasn't just about X, it was about Y"
+       - Instead, write like a real student: "I was pretty nervous at first, but then I realized..." or "Honestly, I didn't think it would matter, but..." or "It hit me that..." or "I guess what I'm trying to say is..."
+       - If the original quote is formal, make the rewrite more casual and authentic
+       - If the original quote is already casual, keep it casual but improve clarity/impact
+       - Remember: A 12th grader's voice is honest, sometimes awkward, and never perfectly polished. That's what makes it authentic.
   `;
 
   const result = await model.generateContent(prompt);
@@ -340,7 +401,7 @@ const UNIVERSITIES = [
 
 export default function EssayFlow() {
   const [text, setText] = useState('');
-  const [selectedSchools, setSelectedSchools] = useState([]);
+  const [selectedSchools, setSelectedSchools] = useState([UNIVERSITIES.find(u => u.id === 'jhu')]); // JHU default
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [customApiKey, setCustomApiKey] = useState('');
@@ -350,6 +411,7 @@ export default function EssayFlow() {
   
   // Layout State
   const [isTargetingExpanded, setIsTargetingExpanded] = useState(true);
+  const [filter, setFilter] = useState('All');
 
   // Highlight State
   const [activeFeedbackId, setActiveFeedbackId] = useState(null);
@@ -382,6 +444,7 @@ export default function EssayFlow() {
     setError(null);
     setIsTargetingExpanded(true);
     setActiveFeedbackId(null);
+    setFilter('All');
   };
 
   const handleAnalyze = async () => {
@@ -420,62 +483,8 @@ export default function EssayFlow() {
     }
   };
 
-  const generatePDF = async () => {
-    // Use a specific, styled hidden element for PDF generation
-    const input = document.getElementById('pdf-report-template');
-    if (!input) return;
-
-    setIsEmailing(true); // Reuse loading state
-    
-    try {
-      // Ensure it's momentarily visible for html2canvas to capture
-      input.style.display = 'block';
-      input.style.position = 'fixed';
-      input.style.left = '0';
-      input.style.top = '0';
-      input.style.zIndex = '-9999'; // Behind everything but visible to capture
-      
-      const canvas = await html2canvas(input, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: '#ffffff' // Force white background
-      });
-      
-      input.style.display = 'none'; 
-      input.style.left = '-9999px'; // Move back
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgProps = pdf.getImageProperties(imgData);
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      // Add subsequent pages
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight; 
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight); // Correct calculation for subsequent pages
-        heightLeft -= pdfHeight;
-      }
-      
-      pdf.save("essay-analysis-report.pdf");
-      
-      setEmailSent(true);
-      setTimeout(() => setEmailSent(false), 3000);
-    } catch (e) {
-      console.error("PDF Gen Error", e);
-      alert("Could not generate PDF. Please try again.");
-    } finally {
-      setIsEmailing(false);
-    }
+  const handlePrint = () => {
+    window.print();
   };
 
   const handleEmailResults = (e) => {
@@ -493,19 +502,28 @@ HOPKINS ESSAY LAB REPORT
 ${results.summary}
 
 📊 METRICS
-• Score: ${results.overallScore}/100
+• Overall Score: ${results.overallScore}/100
 • Readability: ${results.readabilityGrade}
 • Uniqueness: ${results.uniquenessScore}
 • AI Probability: ${results.aiProbability}%
 
 💡 DETAILED FEEDBACK
 ====================
-${results.feedback.map(f => `
-🔹 ${f.category.toUpperCase()}
+${results.feedback.map((f, idx) => `
+${idx + 1}. ${f.category.toUpperCase()} - ${f.score}/100
 "${f.title}"
-${f.summary}
 
-> ACTION: ${f.action}
+Summary: ${f.summary}
+
+Details: ${f.details}
+
+${f.quote ? `Quoted Text: "${f.quote}"` : ''}
+
+Action: ${f.action}
+
+${f.rewrite_suggestion ? `\n💡 REWRITE EXAMPLE:\n"${f.rewrite_suggestion}"` : ''}
+
+${'-'.repeat(50)}
 `).join('\n')}
 
 ------------------------------------------------
@@ -561,7 +579,7 @@ Powered by JHU Engineering
         start: startIndex,
         end: startIndex + item.quote.trim().length, // Use trimmed length for safety
         id: item.id,
-        color: HIGHLIGHT_COLORS[index % HIGHLIGHT_COLORS.length]
+        color: getCategoryColor(item.category)
       });
     });
 
@@ -604,12 +622,16 @@ Powered by JHU Engineering
                 id={`highlight-${seg.id}`}
                 onClick={() => handleHighlightClick(seg.id)}
                 className={`
-                  rounded-sm px-0.5 cursor-pointer transition-all duration-200
+                  rounded-sm px-0.5 cursor-pointer transition-all duration-200 border-b-2
                   ${isActive 
-                    ? `bg-cyan-300 text-cyan-950 font-medium shadow-[0_0_15px_rgba(103,232,249,0.6)] ring-1 ring-cyan-400` 
-                    : `bg-cyan-100/50 hover:bg-cyan-200/50 text-slate-800`
+                    ? `bg-white text-black font-medium shadow-lg scale-105 z-10 relative ring-2 ring-current border-transparent` 
+                    : `${seg.color.replace('bg-', 'border-').replace('400', '300')} bg-opacity-20 hover:bg-opacity-40`
                   }
                 `}
+                style={{ 
+                    backgroundColor: isActive ? 'white' : undefined,
+                    borderColor: !isActive ? 'currentColor' : undefined 
+                }}
               >
                 {seg.text}
               </span>
@@ -620,6 +642,13 @@ Powered by JHU Engineering
       </>
     );
   };
+
+  const filteredFeedback = results?.feedback.filter(item => {
+    if (filter === 'All') return true;
+    if (filter === 'Critical') return item.score < 75;
+    if (filter === 'High Impact') return item.score >= 90;
+    return true;
+  });
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden font-sans selection:bg-cyan-200 selection:text-cyan-900">
@@ -646,70 +675,81 @@ Powered by JHU Engineering
         onClose={() => setShowLockedModal(false)}
       />
 
-      {/* PDF Generation Template (Hidden) */}
+      {/* Print Report Template (Visible only on print) */}
       {results && (
-        <div id="pdf-report-template" className="bg-white p-12 w-[794px] hidden absolute top-0 left-[-9999px] text-slate-900 font-sans">
-          <div className="border-b border-slate-200 pb-6 mb-8 flex justify-between items-center">
+        <div id="print-container" className="hidden bg-white text-black p-8 max-w-[210mm] mx-auto font-sans">
+          <div className="border-b-2 border-gray-800 pb-6 mb-8 flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Essay Analysis Report</h1>
-              <p className="text-slate-500 mt-1">Hopkins Essay Lab • Powered by JHU Engineering</p>
+              <h1 className="text-4xl font-bold text-black mb-2">Essay Analysis Report</h1>
+              <p className="text-gray-600 font-medium">Hopkins Essay Lab • Powered by JHU Engineering</p>
             </div>
-            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center">
-              <Bird className="w-8 h-8 text-blue-600" />
+            <div className="text-right text-sm text-gray-500">
+              {new Date().toLocaleDateString()}
             </div>
           </div>
 
           <div className="grid grid-cols-4 gap-4 mb-8">
-            <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Overall Score</div>
-              <div className="text-3xl font-bold text-blue-600">{results.overallScore}</div>
+            <div className="bg-gray-100 p-4 rounded-lg text-center border border-gray-200">
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-bold">Overall Score</div>
+              <div className="text-3xl font-bold text-blue-700">{results.overallScore}</div>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Readability</div>
-              <div className="text-xl font-semibold text-slate-800">{results.readabilityGrade}</div>
+            <div className="bg-gray-100 p-4 rounded-lg text-center border border-gray-200">
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-bold">Readability</div>
+              <div className="text-xl font-semibold text-gray-800">{results.readabilityGrade}</div>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Sentiment</div>
-              <div className="text-xl font-semibold text-slate-800">{results.sentiment}</div>
+            <div className="bg-gray-100 p-4 rounded-lg text-center border border-gray-200">
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-bold">AI Probability</div>
+              <div className="text-xl font-semibold text-gray-800">{results.aiProbability}%</div>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl text-center border border-slate-100">
-              <div className="text-xs text-slate-500 uppercase tracking-wide mb-1">Uniqueness</div>
-              <div className="text-xl font-semibold text-slate-800">{results.uniquenessScore}</div>
+            <div className="bg-gray-100 p-4 rounded-lg text-center border border-gray-200">
+              <div className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-bold">Uniqueness</div>
+              <div className="text-xl font-semibold text-gray-800">{results.uniquenessScore}</div>
             </div>
           </div>
 
-          <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 mb-8">
-            <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-2">Summary</h3>
-            <p className="text-slate-700 leading-relaxed">{results.summary}</p>
+          <div className="bg-blue-50 p-6 rounded-xl border-l-4 border-blue-600 mb-10">
+            <h3 className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-2">Executive Summary</h3>
+            <p className="text-gray-800 leading-relaxed text-lg">{results.summary}</p>
           </div>
 
-          <h3 className="text-xl font-bold text-slate-900 mb-4">Detailed Feedback</h3>
-          <div className="space-y-6">
+          <h3 className="text-2xl font-bold text-black mb-6 border-b pb-2">Detailed Feedback</h3>
+          <div className="space-y-8">
             {results.feedback.map((item, idx) => (
-              <div key={idx} className="border border-slate-200 rounded-xl p-5 break-inside-avoid">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold uppercase bg-slate-100 text-slate-600 px-2 py-1 rounded">
-                    {item.category}
-                  </span>
-                  <span className="text-xs font-bold text-slate-400">{item.score}/100</span>
+              <div key={idx} className="break-inside-avoid mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded uppercase">
+                      {item.category}
+                    </span>
+                    <h4 className="font-bold text-xl text-gray-900">{item.title}</h4>
+                  </div>
+                  <span className="font-bold text-gray-400">{item.score}/100</span>
                 </div>
-                <h4 className="font-bold text-lg text-slate-800 mb-2">{item.title}</h4>
-                <p className="text-slate-600 text-sm mb-4">{item.details}</p>
-                <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-100">
-                  <strong className="text-cyan-900 text-xs uppercase">Action:</strong>
-                  <p className="text-cyan-800 text-sm mt-1">{item.action}</p>
+                
+                <p className="text-gray-700 mb-3">{item.details}</p>
+                
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <strong className="text-blue-800 text-xs uppercase block mb-1">Action Item:</strong>
+                  <p className="text-gray-800 font-medium">{item.action}</p>
                 </div>
+
+                {item.rewrite_suggestion && (
+                    <div className="mt-3 pl-4 border-l-4 border-green-400 italic text-gray-600">
+                        <span className="text-green-700 font-bold text-xs not-italic block mb-1">Example Rewrite:</span>
+                        "{item.rewrite_suggestion}"
+                    </div>
+                )}
               </div>
             ))}
           </div>
           
-          <div className="mt-12 pt-6 border-t border-slate-200 text-center text-slate-400 text-xs">
-            Generated by Hopkins Essay Lab • {new Date().toLocaleDateString()}
+          <div className="mt-12 pt-6 border-t border-gray-200 text-center text-gray-400 text-xs">
+            Generated by Hopkins Essay Lab • Only for personal use
           </div>
         </div>
       )}
 
-      <div className="relative z-10 max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen flex flex-col">
+      <div className="relative z-10 max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen flex flex-col no-print">
         
         <header className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
@@ -898,15 +938,25 @@ Powered by JHU Engineering
                 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-6 pb-4">
                   
-                  {/* Action Buttons */}
-                  <div className="flex justify-end gap-2">
+                  {/* Action Buttons & Filter */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex gap-2">
+                        {['All', 'Critical', 'High Impact'].map(f => (
+                            <button 
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${filter === f ? 'bg-white text-blue-900' : 'bg-white/10 text-blue-200 hover:bg-white/20'}`}
+                            >
+                                {f}
+                            </button>
+                        ))}
+                    </div>
                      <button 
-                        onClick={generatePDF}
-                        disabled={isEmailing}
+                        onClick={handlePrint}
                         className="flex items-center gap-2 text-xs font-medium text-blue-200 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all"
                      >
-                       {isEmailing ? <Sparkles className="w-3 h-3 animate-spin"/> : <Download className="w-3 h-3" />}
-                       Download PDF
+                       <Printer className="w-3 h-3" />
+                       Print / Save PDF
                      </button>
                   </div>
 
@@ -1022,16 +1072,16 @@ Powered by JHU Engineering
                     <div className="flex items-center justify-between mb-4 px-2">
                       <h3 className="text-white font-semibold">Detailed Insights</h3>
                       <span className="text-xs text-blue-200 bg-white/10 px-2 py-1 rounded-full">
-                        {results.feedback ? results.feedback.length : 0} Suggestions
+                        {filteredFeedback ? filteredFeedback.length : 0} Suggestions
                       </span>
                     </div>
                     
                     <div className="space-y-2 pb-12">
-                      {results.feedback && results.feedback.map((item, idx) => (
+                      {filteredFeedback && filteredFeedback.map((item, idx) => (
                         <div id={`feedback-card-${item.id}`} key={idx}>
                           <FeedbackCard 
                             item={item} 
-                            color={HIGHLIGHT_COLORS[idx % HIGHLIGHT_COLORS.length]}
+                            color={getCategoryColor(item.category)}
                             isSelected={activeFeedbackId === item.id}
                             onClick={handleFeedbackClick}
                           />

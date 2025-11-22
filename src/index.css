@@ -59,3 +59,76 @@
 .animate-draw-underline {
   animation: draw-underline 0.4s ease-out forwards;
 }
+
+/* Print Styles */
+@page {
+  margin: 20mm; /* Force default 20mm margin on all sides */
+  size: auto;
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-family: 'Inter', system-ui, sans-serif !important; /* Force Inter globally on print body */
+  }
+  
+  /* Hide UI elements */
+  header, 
+  aside,
+  button:not(#print-trigger),
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset scroll containers for printing */
+  #results-section, 
+  .custom-scrollbar {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Specific Print Layout */
+  #print-container {
+    display: block !important;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important; /* Let @page handle the margins */
+    background: white !important;
+    color: black !important;
+    font-family: 'Inter', system-ui, sans-serif !important; /* Reinforce Inter */
+  }
+  
+  /* Force all headers to be sans-serif in print */
+  h1, h2, h3, h4, h5, h6, .font-serif {
+    font-family: 'Inter', system-ui, sans-serif !important;
+  }
+
+  /* Show hidden elements for print */
+  #print-container .hidden-print-block {
+    display: block !important;
+  }
+
+  /* Hide the app wrapper background */
+  .min-h-screen, .fixed {
+    background: none !important;
+    position: static !important;
+  }
+  
+  /* Hide decorative blobs */
+  .fixed.top-\[-10\%\], .fixed.bottom-\[-10\%\], .fixed.top-\[40\%\] {
+    display: none !important;
+  }
+
+  /* Hide main app grid */
+  main.grid {
+    display: none !important;
+  }
+}

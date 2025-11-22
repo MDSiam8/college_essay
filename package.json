@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/merriweather": "^5.2.11",
     "@google/generative-ai": "^0.24.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
