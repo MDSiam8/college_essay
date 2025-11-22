@@ -111,7 +111,7 @@ const ApiKeyModal = ({ isOpen, onClose, onSave }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Set Custom API Key">
       <p className="text-slate-500 text-sm mb-4">
-        Enter your own Google Gemini API key to use for analysis. This key is only stored locally in your browser session.
+        Enter your own Google Gemini API key to use for analysis. This key is stored locally in your browser and never sent to our servers.
       </p>
       <input
         type="password"
@@ -232,14 +232,23 @@ const FeedbackCard = ({ item, color, isSelected, onClick }) => {
 let genAIInstance = null;
 
 const getGenAI = (apiKey) => {
-  if (!genAIInstance) {
-    // Prioritize custom key, then fallback to environment variable
-    const key = apiKey || import.meta.env.VITE_GEMINI_API_KEY;
-    if (key) {
-      genAIInstance = new GoogleGenerativeAI(key);
-    } else {
-      console.warn("Gemini API Key is missing. Please set VITE_GEMINI_API_KEY or provide a custom key.");
-    }
+  // Prioritize custom key, then fallback to environment variable (default key)
+  // NOTE: This API key will be in the client bundle. This is expected for client-side apps.
+  // The key MUST be restricted in Google Cloud Console with:
+  // - HTTP referrer restrictions (domain-only access)
+  // - API restrictions (Gemini API only)
+  // See API_KEY_SECURITY.md for setup instructions.
+  const key = apiKey || import.meta.env.VITE_GEMINI_API_KEY;
+  
+  if (!key) {
+    console.warn("Gemini API Key is missing. Please click the key icon to add your Google Gemini API key.");
+    return null;
+  }
+  
+  // Create new instance if key changed or doesn't exist
+  if (!genAIInstance || genAIInstance._apiKey !== key) {
+    genAIInstance = new GoogleGenerativeAI(key);
+    genAIInstance._apiKey = key; // Store for comparison
   }
   return genAIInstance;
 }
@@ -404,10 +413,22 @@ export default function EssayFlow() {
   const [selectedSchools, setSelectedSchools] = useState([UNIVERSITIES.find(u => u.id === 'jhu')]); // JHU default
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
-  const [customApiKey, setCustomApiKey] = useState('');
+  const [customApiKey, setCustomApiKey] = useState(() => {
+    // Load API key from localStorage on mount
+    return localStorage.getItem('gemini_api_key') || '';
+  });
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Save API key to localStorage whenever it changes
+  useEffect(() => {
+    if (customApiKey) {
+      localStorage.setItem('gemini_api_key', customApiKey);
+    } else {
+      localStorage.removeItem('gemini_api_key');
+    }
+  }, [customApiKey]);
   
   // Layout State
   const [isTargetingExpanded, setIsTargetingExpanded] = useState(true);
