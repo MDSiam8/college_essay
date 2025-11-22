@@ -239,7 +239,6 @@ const findQuoteIndex = (text, quote) => {
 const analyzeEssayWithGemini = async (text, selectedSchools, apiKey) => {
   const genAI = new GoogleGenerativeAI(apiKey || DEFAULT_GEMINI_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" }); 
-
   const schoolContext = selectedSchools.length > 0 
     ? `The student is targeting: ${selectedSchools.map(s => `${s.name} (Vibe: ${s.vibe})`).join(', ')}.`
     : "The student has not selected specific target schools yet.";
@@ -411,7 +410,6 @@ export default function EssayFlow() {
     
     try {
       // Ensure it's momentarily visible for html2canvas to capture
-      // We move it into the viewport but keep it fixed to avoid scroll issues
       input.style.display = 'block';
       input.style.position = 'fixed';
       input.style.left = '0';
@@ -443,13 +441,9 @@ export default function EssayFlow() {
 
       // Add subsequent pages
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight; // This logic often needs tweaking for exact paging
-        // simpler approach: shift up by page height
-        position = -(pdfHeight * (pdf.getNumberOfPages())); // No, standard loop:
-        
+        position = heightLeft - imgHeight; 
         pdf.addPage();
-        // We render the image shifted up by the height of previous pages
-        pdf.addImage(imgData, 'PNG', 0, -(pdfHeight * pdf.internal.getNumberOfPages() - pdfHeight), pdfWidth, imgHeight);
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight); // Correct calculation for subsequent pages
         heightLeft -= pdfHeight;
       }
       
@@ -591,10 +585,10 @@ Powered by JHU Engineering
                 id={`highlight-${seg.id}`}
                 onClick={() => handleHighlightClick(seg.id)}
                 className={`
-                  rounded px-0.5 cursor-pointer transition-all duration-300
+                  rounded-sm px-0.5 cursor-pointer transition-all duration-200
                   ${isActive 
-                    ? `bg-cyan-300 text-cyan-900 font-semibold shadow-sm scale-105 inline-block mx-0.5 border-b-2 border-cyan-600` 
-                    : `${seg.color} text-slate-800 hover:opacity-80`
+                    ? `bg-cyan-300 text-cyan-950 font-medium shadow-[0_0_15px_rgba(103,232,249,0.6)] ring-1 ring-cyan-400` 
+                    : `bg-cyan-100/50 hover:bg-cyan-200/50 text-slate-800`
                   }
                 `}
               >
